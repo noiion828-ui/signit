@@ -103,6 +103,93 @@ function showButtonFeedback(btn, text, color, duration = 2500) {
   }, duration);
 }
 
+// --- Gmail Deeplink Toast ---
+
+function showConfirmationToast() {
+  // Remove existing toast if any
+  const existing = document.getElementById('signit-confirm-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'signit-confirm-toast';
+  toast.style.cssText = `
+    position: fixed; bottom: 80px; right: 20px; z-index: 99999;
+    background: #12121a; border: 1px solid #00b894; border-radius: 12px;
+    padding: 16px 20px; max-width: 320px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    animation: signit-slide-in 0.3s ease;
+  `;
+
+  const gmailSearchUrl = 'https://mail.google.com/mail/u/0/#search/from%3Aopenpetition+is%3Aunread+newer_than%3A1h';
+  const outlookSearchUrl = 'https://outlook.live.com/mail/0/inbox?searchQuery=openpetition';
+
+  toast.innerHTML = `
+    <style>
+      @keyframes signit-slide-in {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .signit-toast-title {
+        color: #00b894; font-weight: 700; font-size: 13px; margin-bottom: 6px;
+      }
+      .signit-toast-text {
+        color: #8888a0; font-size: 12px; line-height: 1.5; margin-bottom: 12px;
+      }
+      .signit-toast-buttons {
+        display: flex; gap: 8px; flex-wrap: wrap;
+      }
+      .signit-toast-btn {
+        padding: 8px 14px; border-radius: 6px; font-size: 12px;
+        font-weight: 600; cursor: pointer; border: none;
+        text-decoration: none; display: inline-block; text-align: center;
+        transition: opacity 0.2s;
+      }
+      .signit-toast-btn:hover { opacity: 0.85; }
+      .signit-toast-gmail {
+        background: #e17055; color: white;
+      }
+      .signit-toast-outlook {
+        background: #0078d4; color: white;
+      }
+      .signit-toast-close {
+        background: none; color: #8888a0; border: 1px solid #2a2a3a;
+        padding: 8px 12px;
+      }
+    </style>
+    <div class="signit-toast-title">Email bestaetigen</div>
+    <div class="signit-toast-text">
+      openPetition hat dir eine Bestaetigungs-Email geschickt. Klick den Link darin — dann zaehlt deine Stimme.
+    </div>
+    <div class="signit-toast-buttons">
+      <a href="${gmailSearchUrl}" target="_blank" class="signit-toast-btn signit-toast-gmail">
+        Gmail oeffnen
+      </a>
+      <a href="${outlookSearchUrl}" target="_blank" class="signit-toast-btn signit-toast-outlook">
+        Outlook
+      </a>
+      <button class="signit-toast-btn signit-toast-close" id="signit-toast-close">
+        OK
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(toast);
+
+  document.getElementById('signit-toast-close').addEventListener('click', () => {
+    toast.style.animation = 'signit-slide-in 0.2s ease reverse';
+    setTimeout(() => toast.remove(), 200);
+  });
+
+  // Auto-dismiss after 30 seconds
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.style.animation = 'signit-slide-in 0.2s ease reverse';
+      setTimeout(() => toast.remove(), 200);
+    }
+  }, 30000);
+}
+
 // --- Step 1: Name + Email ---
 
 async function handleStep1Fill(btn) {
@@ -206,13 +293,22 @@ function watchForStep2(btn) {
 function init() {
   // Detect if we're on a petition page with a signing form
   const form = document.querySelector(SELECTORS.signForm);
-  if (!form) return;
+  console.log('[SignIt] Form detection:', form ? 'FOUND' : 'NOT FOUND');
+  console.log('[SignIt] Container:', document.querySelector(SELECTORS.formContainer) ? 'FOUND' : 'NOT FOUND');
+  console.log('[SignIt] Name input:', document.querySelector(SELECTORS.name) ? 'FOUND' : 'NOT FOUND');
+  if (!form) {
+    console.log('[SignIt] No signing form found — this petition may be closed or not signable.');
+    return;
+  }
 
   // Create autofill button
   const btn = createAutofillButton('SignIt: Autofill', () => handleStep1Fill(btn));
 
   // Watch for Step 2 (address form injected after reCAPTCHA)
   watchForStep2(btn);
+
+  // Watch for confirmation message (email verify toast)
+  watchForConfirmation();
 
   // Auto-fill Step 1 if identity exists
   getIdentity().then(identity => {
@@ -223,9 +319,53 @@ function init() {
   });
 }
 
-// Wait for DOM ready, then init
+// --- Watch for Confirmation Message (Email Verify Toast Trigger) ---
+
+function watchForConfirmation() {
+  const observer = new MutationObserver(() => {
+    // openPetition shows confirmation messages after signing
+    const pageText = document.body.innerText;
+    const confirmPatterns = [
+      'E-Mail-Adresse bestätigen',
+      'Bestätigungslink',
+      'bestätigen Sie',
+      'confirm your',
+      'confirmation link',
+      'Bestätigungsmail',
+    ];
+
+    for (const pattern of confirmPatterns) {
+      if (pageText.includes(pattern)) {
+        console.log('[SignIt] Confirmation message detected — showing email toast');
+        showConfirmationToast();
+        observer.disconnect(); // only show once
+        return;
+      }
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  // Also check immediately (page might already show confirmation)
+  setTimeout(() => {
+    const pageText = document.body.innerText;
+    if (pageText.includes('Bestätigungslink') || pageText.includes('E-Mail-Adresse bestätigen')) {
+      console.log('[SignIt] Confirmation already visible — showing email toast');
+      showConfirmationToast();
+      observer.disconnect();
+    }
+  }, 2000);
+}
+
+// --- Self-Test + Init ---
+console.log('[SignIt] Content script loaded on:', window.location.href);
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[SignIt] DOM ready, running init...');
+    init();
+  });
 } else {
+  console.log('[SignIt] DOM already ready, running init...');
   init();
 }

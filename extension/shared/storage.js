@@ -78,7 +78,7 @@ async function updatePetitionCount(url, newCount) {
 // --- Rate Limiting ---
 
 const RATE_LIMIT_KEY = 'signit_rate';
-const MAX_AUTOFILLS_PER_HOUR = 5;
+const MAX_AUTOFILLS_PER_HOUR = 20; // 20 for beta, reduce to 5 for production
 
 async function checkRateLimit() {
   const result = await chrome.storage.local.get(RATE_LIMIT_KEY);

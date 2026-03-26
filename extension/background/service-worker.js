@@ -5,12 +5,15 @@
  * Updates badge with total new signatures since signing.
  */
 
+console.log('[SignIt SW] Service worker starting...');
+
 const POLL_INTERVAL_MINUTES = 240; // 4 hours
 const ALARM_NAME = 'signit-impact-poll';
 
 // --- Alarm Setup ---
 
 chrome.runtime.onInstalled.addListener(() => {
+  console.log('[SignIt SW] Extension installed/updated.');
   chrome.alarms.create(ALARM_NAME, {
     delayInMinutes: 1,
     periodInMinutes: POLL_INTERVAL_MINUTES,

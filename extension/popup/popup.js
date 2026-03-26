@@ -1,6 +1,39 @@
 /**
  * SignIt Popup — Civic Identity Management + Petition Overview.
+ * Self-contained: Storage functions inline (no external import issues).
  */
+
+console.log('[SignIt Popup] popup.js executing...');
+
+// --- Inline Storage (avoid cross-file import issues) ---
+
+const IDENTITY_KEY = 'signit_identity';
+const PETITIONS_KEY = 'signit_petitions';
+
+async function popupGetIdentity() {
+  const result = await chrome.storage.local.get(IDENTITY_KEY);
+  return result[IDENTITY_KEY] || null;
+}
+
+async function popupSaveIdentity(identity) {
+  const data = {
+    ...identity,
+    version: 1,
+    updatedAt: new Date().toISOString(),
+  };
+  if (!data.createdAt) data.createdAt = data.updatedAt;
+  await chrome.storage.local.set({ [IDENTITY_KEY]: data });
+  return data;
+}
+
+async function popupClearAll() {
+  await chrome.storage.local.remove([IDENTITY_KEY, PETITIONS_KEY, 'signit_rate']);
+}
+
+async function popupGetPetitions() {
+  const result = await chrome.storage.local.get(PETITIONS_KEY);
+  return result[PETITIONS_KEY] || [];
+}
 
 // --- Tab Navigation ---
 
@@ -21,19 +54,25 @@ const clearBtn = document.getElementById('clear-btn');
 const fields = ['firstName', 'lastName', 'email', 'postalCode', 'city', 'street'];
 
 async function loadIdentity() {
-  const identity = await getIdentity();
-  if (identity) {
-    fields.forEach(f => {
-      const el = document.getElementById(f);
-      if (el && identity[f]) el.value = identity[f];
-    });
-    clearBtn.style.display = 'block';
-    document.getElementById('save-btn').textContent = 'Profil aktualisieren';
+  try {
+    const identity = await popupGetIdentity();
+    console.log('[SignIt Popup] Loaded identity:', identity ? 'exists' : 'empty');
+    if (identity) {
+      fields.forEach(f => {
+        const el = document.getElementById(f);
+        if (el && identity[f]) el.value = identity[f];
+      });
+      clearBtn.style.display = 'block';
+      document.getElementById('save-btn').textContent = 'Profil aktualisieren';
+    }
+  } catch (err) {
+    console.error('[SignIt Popup] loadIdentity error:', err);
   }
 }
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  console.log('[SignIt Popup] Saving identity...');
 
   const identity = {};
   fields.forEach(f => {
@@ -41,20 +80,25 @@ form.addEventListener('submit', async (e) => {
     if (val) identity[f] = val;
   });
 
-  await saveIdentity(identity);
-
-  saveStatus.textContent = 'Gespeichert!';
-  saveStatus.className = 'status success';
-  clearBtn.style.display = 'block';
-  document.getElementById('save-btn').textContent = 'Profil aktualisieren';
+  try {
+    await popupSaveIdentity(identity);
+    saveStatus.textContent = 'Gespeichert!';
+    saveStatus.className = 'status success';
+    clearBtn.style.display = 'block';
+    document.getElementById('save-btn').textContent = 'Profil aktualisieren';
+    console.log('[SignIt Popup] Identity saved:', identity);
+  } catch (err) {
+    saveStatus.textContent = 'Fehler: ' + err.message;
+    saveStatus.className = 'status error';
+    console.error('[SignIt Popup] Save error:', err);
+  }
 
   setTimeout(() => { saveStatus.textContent = ''; saveStatus.className = 'status'; }, 2000);
 });
 
 clearBtn.addEventListener('click', async () => {
   if (confirm('Alle SignIt-Daten loeschen? (Profil + Petitionen)')) {
-    await clearIdentity();
-    await chrome.storage.local.remove('signit_petitions');
+    await popupClearAll();
     fields.forEach(f => { document.getElementById(f).value = ''; });
     clearBtn.style.display = 'none';
     document.getElementById('save-btn').textContent = 'Profil speichern';
@@ -70,7 +114,7 @@ async function renderPetitions(petitions) {
   const list = document.getElementById('petition-list');
   const empty = document.getElementById('no-petitions');
 
-  if (!petitions) petitions = await getSignedPetitions();
+  if (!petitions) petitions = await popupGetPetitions();
 
   if (petitions.length === 0) {
     list.innerHTML = '';
@@ -96,5 +140,7 @@ async function renderPetitions(petitions) {
 
 // --- Init ---
 
+console.log('[SignIt Popup] Running init...');
 loadIdentity();
 renderPetitions();
+console.log('[SignIt Popup] Init complete.');
