@@ -145,6 +145,40 @@ body {
   color: var(--green);
   margin-top: 4px;
 }
+/* Impact Summary */
+.impact-summary {
+  text-align: center;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(0,184,148,0.1), rgba(108,92,231,0.1));
+  border: 1px solid rgba(0,184,148,0.2);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+.impact-number {
+  font-size: 1.8em;
+  font-weight: 800;
+  color: var(--green);
+}
+.impact-label {
+  font-size: 0.75em;
+  color: var(--text2);
+  margin-top: 2px;
+}
+.btn-secondary {
+  width: 100%;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--accent2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.78em;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+.btn-secondary:hover { border-color: var(--accent); }
+
 .empty-state {
   text-align: center;
   color: var(--text2);

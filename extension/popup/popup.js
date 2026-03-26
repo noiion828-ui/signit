@@ -138,9 +138,46 @@ async function renderPetitions(petitions) {
   }).join('');
 }
 
+// --- Impact Summary ---
+
+async function updateImpactSummary() {
+  const petitions = await popupGetPetitions();
+  const totalDelta = petitions.reduce((sum, p) => sum + (p.delta || 0), 0);
+  const summary = document.getElementById('impact-summary');
+  const totalEl = document.getElementById('impact-total');
+
+  if (totalDelta > 0 || petitions.length > 0) {
+    summary.style.display = 'block';
+    totalEl.textContent = `+${totalDelta.toLocaleString('de-DE')}`;
+  }
+}
+
+// --- Poll Button ---
+
+document.getElementById('poll-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('poll-btn');
+  btn.textContent = 'Aktualisiere...';
+  btn.disabled = true;
+
+  try {
+    await chrome.runtime.sendMessage({ type: 'POLL_NOW' });
+    // Wait a moment for storage to update
+    await new Promise(r => setTimeout(r, 1000));
+    await renderPetitions();
+    await updateImpactSummary();
+    btn.textContent = 'Aktualisiert!';
+    setTimeout(() => { btn.textContent = 'Impact aktualisieren'; btn.disabled = false; }, 2000);
+  } catch (err) {
+    console.error('[SignIt Popup] Poll error:', err);
+    btn.textContent = 'Fehler — nochmal versuchen';
+    btn.disabled = false;
+  }
+});
+
 // --- Init ---
 
 console.log('[SignIt Popup] Running init...');
 loadIdentity();
 renderPetitions();
+updateImpactSummary();
 console.log('[SignIt Popup] Init complete.');
