@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SignIt — Einmal Profil anlegen. Jede Petition mit einem Klick ausfüllen. Sieh was deine Stimme bewirkt." />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta property="og:title" content="SignIt — Deine Petition lebt weiter." />
+  <meta property="og:description" content="Chrome Extension für Petition Autofill und Impact Tracking." />
+  <meta property="og:type" content="website" />
+  <title>SignIt — Deine Petition lebt weiter.</title>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:          #0a0a0f;
+      --bg-2:        #111118;
+      --bg-card:     #16161f;
+      --border:      rgba(255,255,255,.07);
+      --border-glow: rgba(108,92,231,.3);
+      --accent:      #6c5ce7;
+      --accent-dim:  #4a3fb5;
+      --accent-glow: rgba(108,92,231,.15);
+      --green:       #00b894;
+      --green-dim:   rgba(0,184,148,.15);
+      --text:        #e8e8f0;
+      --text-muted:  #7b7b9a;
+      --text-faint:  #3d3d55;
+      --radius:      12px;
+      --radius-lg:   20px;
+      --shadow:      0 4px 24px rgba(0,0,0,.4);
+      --shadow-glow: 0 0 40px rgba(108,92,231,.2);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+      overflow-x: hidden;
+    }
+    img { display: block; max-width: 100%; }
+    a { color: var(--accent); text-decoration: none; transition: color .2s; }
+    a:hover { color: #8b7ff0; }
+
+    /* ─── Layout Helpers ───────────────────────────────────────────── */
+    .container { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+    .section { padding: 96px 0; }
+    .section-sm { padding: 64px 0; }
+
+    /* ─── Typography ───────────────────────────────────────────────── */
+    h1, h2, h3 { font-weight: 700; line-height: 1.2; letter-spacing: -.02em; }
+    h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
+    h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); }
+    h3 { font-size: 1.2rem; }
+    .label {
+      display: inline-block;
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-glow);
+      border: 1px solid var(--border-glow);
+      border-radius: 100px;
+      padding: 4px 14px;
+      margin-bottom: 20px;
+    }
+    .text-muted { color: var(--text-muted); }
+    .gradient-text {
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .green-text { color: var(--green); }
+
+    /* ─── Buttons ──────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 100px;
+      padding: 14px 28px;
+      cursor: pointer;
+      transition: all .2s;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(108,92,231,.4);
+    }
+    .btn-primary:hover {
+      background: #7d6ef0;
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(108,92,231,.5);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,.2);
+      background: rgba(255,255,255,.04);
+    }
+    .btn-green {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(0,184,148,.35);
+    }
+    .btn-green:hover {
+      background: #00d4a8;
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,184,148,.45);
+    }
+
+    /* ─── Nav ──────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(10,10,15,.8);
+      border-bottom: 1px solid var(--border);
+      transition: box-shadow .3s;
+    }
+    nav.scrolled { box-shadow: 0 4px 24px rgba(0,0,0,.3); }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      padding: 0 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-links a {
+      font-size: .9rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: all .2s;
+      text-decoration: none;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .nav-cta { font-size: .88rem !important; padding: 8px 18px !important; }
+
+    /* ─── Hero ─────────────────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: 64px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .hero-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: .35;
+    }
+    .hero-orb-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+      top: -150px; right: -100px;
+    }
+    .hero-orb-2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, var(--green) 0%, transparent 70%);
+      bottom: -100px; left: -100px;
+      opacity: .2;
+    }
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent);
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 80px 20px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .82rem;
+      font-weight: 500;
+      color: var(--green);
+      background: var(--green-dim);
+      border: 1px solid rgba(0,184,148,.2);
+      border-radius: 100px;
+      padding: 6px 14px;
+      margin-bottom: 32px;
+    }
+    .hero-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(.8); }
+    }
+    .hero-title { margin-bottom: 20px; }
+    .hero-subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto 40px;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+    }
+    .hero-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 32px;
+      justify-content: center;
+      margin-top: 64px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .hero-stat-label { font-size: .85rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ─── Problem / Solution ───────────────────────────────────────── */
+    #problem-solution { background: var(--bg-2); }
+    .ps-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .ps-panel {
+      padding: 48px;
+      position: relative;
+    }
+    .ps-problem {
+      background: var(--bg-card);
+    }
+    .ps-solution {
+      background: linear-gradient(135deg, #1a1630 0%, var(--bg-card) 100%);
+      border: 1px solid var(--border-glow);
+    }
+    .ps-panel-label {
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .ps-problem .ps-panel-label { color: var(--text-faint); }
+    .ps-solution .ps-panel-label { color: var(--accent); }
+    .ps-list { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+    .ps-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: .95rem;
+    }
+    .ps-problem .ps-list li { color: var(--text-muted); }
+    .ps-solution .ps-list li { color: var(--text); }
+    .ps-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 12px;
+      margin-top: 1px;
+    }
+    .ps-problem .ps-icon { background: rgba(255,255,255,.05); color: var(--text-faint); }
+    .ps-solution .ps-icon { background: var(--green-dim); color: var(--green); }
+
+    /* ─── How it Works ─────────────────────────────────────────────── */
+    #how-it-works { position: relative; }
+    .steps-wrapper {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+      position: relative;
+    }
+    .steps-wrapper::before {
+      content: '';
+      position: absolute;
+      top: 36px;
+      left: calc(16.66% + 16px);
+      right: calc(16.66% + 16px);
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      opacity: .3;
+    }
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 36px 28px;
+      text-align: center;
+      position: relative;
+      transition: border-color .25s, transform .25s;
+    }
+    .step-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-4px);
+    }
+    .step-number {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #fff;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .step-icon {
+      font-size: 2.4rem;
+      margin-bottom: 20px;
+      display: block;
+    }
+    .step-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .step-desc { font-size: .9rem; color: var(--text-muted); line-height: 1.55; }
+    .step-tag {
+      display: inline-block;
+      margin-top: 16px;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--green);
+      background: var(--green-dim);
+      border: 1px solid rgba(0,184,148,.2);
+      border-radius: 100px;
+      padding: 3px 12px;
+    }
+
+    /* ─── Features ─────────────────────────────────────────────────── */
+    #features { background: var(--bg-2); }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-header p { margin-top: 14px; color: var(--text-muted); font-size: 1.05rem; max-width: 520px; margin-left: auto; margin-right: auto; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      transition: border-color .25s, transform .25s, box-shadow .25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity .25s;
+    }
+    .feature-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-glow);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-card-icon {
+      width: 52px; height: 52px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+    .icon-purple { background: var(--accent-glow); }
+    .icon-green { background: var(--green-dim); }
+    .icon-blue { background: rgba(116,185,255,.1); }
+    .icon-orange { background: rgba(253,203,110,.1); }
+    .feature-card h3 {
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .feature-card p {
+      font-size: .9rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .feature-card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* ─── Waitlist ─────────────────────────────────────────────────── */
+    #waitlist {
+      position: relative;
+      overflow: hidden;
+    }
+    .waitlist-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 70% at 50% 50%, rgba(108,92,231,.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .waitlist-box {
+      position: relative;
+      z-index: 1;
+      max-width: 560px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .waitlist-box h2 { margin-bottom: 12px; }
+    .waitlist-box .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      font-size: 1rem;
+    }
+    #waitlist-form {
+      display: flex;
+      gap: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 6px 6px 20px;
+    }
+    #waitlist-email {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: .95rem;
+      color: var(--text);
+      min-width: 0;
+    }
+    #waitlist-email::placeholder { color: var(--text-muted); }
+    #waitlist-btn { flex-shrink: 0; }
+    #waitlist-error {
+      display: none;
+      color: #ff7675;
+      font-size: .85rem;
+      margin-top: 12px;
+    }
+    #waitlist-success {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .success-icon {
+      width: 64px; height: 64px;
+      background: var(--green-dim);
+      border: 1px solid rgba(0,184,148,.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+    }
+    #waitlist-success h3 { color: var(--green); font-size: 1.3rem; }
+    #waitlist-success p { color: var(--text-muted); font-size: .9rem; }
+    .privacy-note {
+      margin-top: 16px;
+      font-size: .8rem;
+      color: var(--text-faint);
+    }
+
+    /* ─── Footer ───────────────────────────────────────────────────── */
+    footer {
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+    }
+    .footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .footer-logo-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .footer-links a {
+      font-size: .85rem;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: all .2s;
+    }
+    .footer-links a:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .footer-made {
+      font-size: .82rem;
+      color: var(--text-faint);
+    }
+    .footer-made span { color: var(--text-muted); }
+
+    /* ─── Scroll animation ─────────────────────────────────────────── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: none;
+    }
+    .fade-in-delay-1 { transition-delay: .1s; }
+    .fade-in-delay-2 { transition-delay: .2s; }
+    .fade-in-delay-3 { transition-delay: .3s; }
+
+    /* ─── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .section { padding: 72px 0; }
+      .ps-grid { grid-template-columns: 1fr; }
+      .ps-panel { padding: 32px 24px; }
+      .steps-wrapper { grid-template-columns: 1fr; }
+      .steps-wrapper::before { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .hero-stats { gap: 24px; }
+      .hero-stat-value { font-size: 1.5rem; }
+      #waitlist-form {
+        flex-direction: column;
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        gap: 12px;
+      }
+      #waitlist-form #waitlist-btn { border-radius: 100px; justify-content: center; }
+    }
+
+    @media (max-width: 480px) {
+      .hero-actions { flex-direction: column; width: 100%; }
+      .hero-actions .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── Navigation ─────────────────────────────────────────────────────── -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <div class="logo-icon">✍</div>
+      SignIt
+    </a>
+    <div class="nav-links">
+      <a href="#how-it-works">So funktioniert's</a>
+      <a href="#features">Features</a>
+      <a href="#waitlist">Waitlist</a>
+      <a href="https://chrome.google.com/webstore" class="btn btn-primary nav-cta" target="_blank" rel="noopener">Installieren</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── Hero ───────────────────────────────────────────────────────────── -->
+<section id="hero">
+  <div class="hero-bg">
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-grid"></div>
+  </div>
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Chrome Extension · Kostenlos
+      </div>
+      <h1 class="hero-title gradient-text">Deine Petition<br>lebt weiter.</h1>
+      <p class="hero-subtitle">
+        Einmal Profil anlegen. Jede Petition mit einem Klick ausfüllen.
+        Sieh, was deine Stimme bewirkt.
+      </p>
+      <div class="hero-actions">
+        <a href="https://chrome.google.com/webstore" class="btn btn-primary" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 12 2.4 6.8"/><circle cx="12" cy="12" r="3"/></svg>
+          Jetzt installieren
+        </a>
+        <a href="#waitlist" class="btn btn-ghost">
+          Auf Waitlist setzen
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat fade-in fade-in-delay-1">
+          <div class="hero-stat-value green-text">1-Klick</div>
+          <div class="hero-stat-label">Autofill auf jeder Petition</div>
+        </div>
+        <div class="hero-stat fade-in fade-in-delay-2">
+          <div class="hero-stat-value green-text">100%</div>
+          <div class="hero-stat-label">Daten bleiben lokal</div>
+        </div>
+        <div class="hero-stat fade-in fade-in-delay-3">
+          <div class="hero-stat-value green-text">Open</div>
+          <div class="hero-stat-label">Source auf GitHub</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Problem / Solution ─────────────────────────────────────────────── -->
+<section id="problem-solution" class="section">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="label">Das große Warum</div>
+      <h2>Unterschreiben sollte nicht mühsam sein.</h2>
+      <p>Jede Unterschrift zählt — aber jedes Formular bremst dich. Das ändert SignIt.</p>
+    </div>
+    <div class="ps-grid fade-in">
+      <div class="ps-panel ps-problem">
+        <div class="ps-panel-label">Das Problem</div>
+        <ul class="ps-list">
+          <li>
+            <span class="ps-icon">✕</span>
+            Jede Plattform hat ihr eigenes Formular — immer wieder dieselben Felder.
+          </li>
+          <li>
+            <span class="ps-icon">✕</span>
+            Vorname, Nachname, PLZ, E-Mail — zehn Mal am Tag, von Hand eingegeben.
+          </li>
+          <li>
+            <span class="ps-icon">✕</span>
+            Du unterschreibst und weißt nie, ob deine Stimme irgendetwas bewegt hat.
+          </li>
+          <li>
+            <span class="ps-icon">✕</span>
+            Kein Überblick: Welche Petitionen hast du unterzeichnet? Was ist daraus geworden?
+          </li>
+        </ul>
+      </div>
+      <div class="ps-panel ps-solution">
+        <div class="ps-panel-label">Die Lösung</div>
+        <ul class="ps-list">
+          <li>
+            <span class="ps-icon">✓</span>
+            <strong>1 Profil</strong> — einmal anlegen, überall genutzt. Kein Datenleck.
+          </li>
+          <li>
+            <span class="ps-icon">✓</span>
+            <strong>1-Klick Autofill</strong> — SignIt erkennt das Formular und füllt es sofort aus.
+          </li>
+          <li>
+            <span class="ps-icon">✓</span>
+            <strong>Micro-Impact Tracking</strong> — sieh in Echtzeit: "+237 neue Stimmen seit dir".
+          </li>
+          <li>
+            <span class="ps-icon">✓</span>
+            <strong>Deine Chronik</strong> — alle unterzeichneten Petitionen auf einen Blick.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── How it Works ───────────────────────────────────────────────────── -->
+<section id="how-it-works" class="section">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="label">In 3 Schritten</div>
+      <h2>So einfach geht's.</h2>
+      <p>Von der Installation bis zur ersten automatisch ausgefüllten Petition in unter zwei Minuten.</p>
+    </div>
+    <div class="steps-wrapper">
+      <div class="step-card fade-in fade-in-delay-1">
+        <div class="step-number">1</div>
+        <span class="step-icon">🗂️</span>
+        <div class="step-title">Profil anlegen</div>
+        <p class="step-desc">
+          Trage einmalig deinen Namen, E-Mail, Adresse und PLZ ein.
+          Alles bleibt lokal in deinem Browser — verschlüsselt, kein Server.
+        </p>
+        <span class="step-tag">≈ 60 Sekunden</span>
+      </div>
+      <div class="step-card fade-in fade-in-delay-2">
+        <div class="step-number">2</div>
+        <span class="step-icon">⚡</span>
+        <div class="step-title">Petition besuchen → Autofill</div>
+        <p class="step-desc">
+          Öffne eine Petition auf openPetition. SignIt erkennt das Formular automatisch
+          und füllt alle Felder mit einem Klick aus.
+        </p>
+        <span class="step-tag">1 Klick</span>
+      </div>
+      <div class="step-card fade-in fade-in-delay-3">
+        <div class="step-number">3</div>
+        <span class="step-icon">📈</span>
+        <div class="step-title">Impact verfolgen</div>
+        <p class="step-desc">
+          Nach deiner Unterschrift zeigt SignIt dir live: wie viele
+          Menschen seit dir unterschrieben haben — deine Stimme in Zahlen.
+        </p>
+        <span class="step-tag">+237 neue seit dir</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Features ──────────────────────────────────────────────────────── -->
+<section id="features" class="section">
+  <div class="container">
+    <div class="section-header fade-in">
+      <div class="label">Features</div>
+      <h2>Alles, was du brauchst.</h2>
+      <p>Gebaut für Menschen, die Petitionen ernst nehmen — ohne Schnickschnack.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feature-card fade-in fade-in-delay-1">
+        <div class="feature-card-icon icon-purple">⚡</div>
+        <h3>Intelligentes Autofill</h3>
+        <p>
+          SignIt analysiert Petition-Formulare und ordnet Felder automatisch
+          deinem Profil zu — auch wenn die Plattform unterschiedliche
+          Feldnamen nutzt.
+        </p>
+        <div class="feature-card-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Keine manuelle Konfiguration
+        </div>
+      </div>
+
+      <div class="feature-card fade-in fade-in-delay-2">
+        <div class="feature-card-icon icon-green">📊</div>
+        <h3>Micro-Impact Tracking</h3>
+        <p>
+          Sieh in Echtzeit, wie viele Menschen seit deiner Unterschrift
+          mitgemacht haben. Dein persönlicher Impact-Score zeigt dir,
+          welchen Unterschied du machst.
+        </p>
+        <div class="feature-card-badge" style="color: var(--green);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Live-Updates ohne Reload
+        </div>
+      </div>
+
+      <div class="feature-card fade-in fade-in-delay-1">
+        <div class="feature-card-icon icon-blue">🔒</div>
+        <h3>Privacy-First</h3>
+        <p>
+          Deine Daten verlassen niemals deinen Browser. Kein Backend,
+          kein Tracking, keine Analytics. Alles wird lokal im
+          Chrome-Storage verschlüsselt gespeichert.
+        </p>
+        <div class="feature-card-badge" style="color: #74b9ff;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Lokal · Kein Server · DSGVO-konform
+        </div>
+      </div>
+
+      <div class="feature-card fade-in fade-in-delay-2">
+        <div class="feature-card-icon icon-orange">🐙</div>
+        <h3>Open Source</h3>
+        <p>
+          Vollständig quelloffen auf GitHub. Du kannst den Code prüfen,
+          Bugs melden, Plattform-Adapter beitragen und SignIt auf weiteren
+          Petitions-Seiten nutzbar machen.
+        </p>
+        <div class="feature-card-badge" style="color: #fdcb6e;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          MIT Lizenz
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─── Waitlist ───────────────────────────────────────────────────────── -->
+<section id="waitlist" class="section">
+  <div class="waitlist-bg"></div>
+  <div class="container">
+    <div class="waitlist-box fade-in">
+      <div class="label">Early Access</div>
+      <h2>Sei dabei, wenn es losgeht.</h2>
+      <p class="subtitle">
+        SignIt ist in aktiver Entwicklung. Trag dich jetzt ein und erhalte
+        eine Benachrichtigung, sobald die Extension im Chrome Web Store verfügbar ist.
+      </p>
+
+      <form id="waitlist-form" novalidate>
+        <input
+          id="waitlist-email"
+          type="email"
+          placeholder="deine@email.de"
+          autocomplete="email"
+          required
+        />
+        <button id="waitlist-btn" type="submit" class="btn btn-green">
+          Auf Waitlist setzen
+        </button>
+      </form>
+
+      <div id="waitlist-error" role="alert"></div>
+
+      <div id="waitlist-success" role="status">
+        <div class="success-icon">🎉</div>
+        <h3>Du bist dabei!</h3>
+        <p>Wir melden uns, sobald SignIt startet. Danke, dass du glaubst, dass Stimmen zählen.</p>
+      </div>
+
+      <p class="privacy-note">
+        Kein Spam. Keine Weitergabe. Du kannst dich jederzeit abmelden.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <a href="#" class="footer-logo">
+        <div class="footer-logo-icon">✍</div>
+        SignIt
+      </a>
+      <div class="footer-links">
+        <a href="/impressum">Impressum</a>
+        <a href="/datenschutz">Datenschutz</a>
+        <a href="https://github.com/your-org/signit" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <div class="footer-made">
+        Made with <span>purpose</span> in Berlin
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="waitlist.js"></script>
+<script>
+  // ── Nav scroll effect ───────────────────────────────────────────────
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  // ── Intersection Observer for fade-in ──────────────────────────────
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // ── Smooth anchor scrolling with offset for fixed nav ──────────────
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', e => {
+      const id = link.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (!target) return;
+      e.preventDefault();
+      const offset = 80;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+</script>
+</body>
+</html>

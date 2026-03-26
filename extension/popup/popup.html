@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <div class="logo">SignIt</div>
+    <div class="tagline">Deine Petition lebt weiter.</div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <button class="tab active" data-tab="profile">Profil</button>
+    <button class="tab" data-tab="petitions">Petitionen</button>
+  </div>
+
+  <!-- Profile Tab -->
+  <div class="panel active" id="panel-profile">
+    <form id="identity-form">
+      <div class="field-row">
+        <div class="field">
+          <label for="firstName">Vorname *</label>
+          <input type="text" id="firstName" required placeholder="Max">
+        </div>
+        <div class="field">
+          <label for="lastName">Nachname *</label>
+          <input type="text" id="lastName" required placeholder="Mustermann">
+        </div>
+      </div>
+      <div class="field">
+        <label for="email">Email *</label>
+        <input type="email" id="email" required placeholder="max@example.de">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="postalCode">PLZ *</label>
+          <input type="text" id="postalCode" required placeholder="10965" maxlength="5">
+        </div>
+        <div class="field">
+          <label for="city">Stadt *</label>
+          <input type="text" id="city" required placeholder="Berlin">
+        </div>
+      </div>
+      <div class="field">
+        <label for="street">Strasse <span class="optional">(fuer openPetition Step 2)</span></label>
+        <input type="text" id="street" placeholder="Musterstr. 42">
+      </div>
+      <p class="hint">openPetition kombiniert Vor- + Nachname zu einem Feld. SignIt macht das automatisch.</p>
+      <button type="submit" class="btn-primary" id="save-btn">Profil speichern</button>
+    </form>
+    <div id="save-status" class="status"></div>
+    <button id="clear-btn" class="btn-danger" style="display:none;">Alle Daten loeschen</button>
+  </div>
+
+  <!-- Petitions Tab -->
+  <div class="panel" id="panel-petitions">
+    <div id="petition-list"></div>
+    <div id="no-petitions" class="empty-state">
+      Noch keine Petitionen unterschrieben.<br>
+      Besuche <a href="https://www.openpetition.de" target="_blank">openPetition.de</a> und klicke "SignIt: Autofill".
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <a href="https://signit.tools" target="_blank">signit.tools</a>
+    <span class="version">v0.1.0</span>
+  </div>
+
+  <script src="../shared/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
