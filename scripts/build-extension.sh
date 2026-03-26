@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-BUILD_DIR="/tmp/signit-build"
+BUILD_DIR="${TMPDIR:-/tmp}/signit-build"
 ZIP_OUT="$PROJECT_ROOT/signit-extension.zip"
 
 echo "[SignIt Build] Starting production build..."
